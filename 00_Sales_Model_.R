@@ -16,6 +16,9 @@ library(vip) #Most important feature visualisations
 library(readr)
 library(data.table)
 library(skimr)
+library(tictoc)
+
+tini <- Sys.time()
 
 #Load Data
 train <- fread("train.csv") %>% as.data.frame()
@@ -23,53 +26,53 @@ skim(train)
 
 
 #--- EDA
-viz_by_dtype <- function(combi, x, y ) {
-  title <- str_replace_all(y, "_", " ") %>% 
-           str_to_title()
-  if ("factor" %in% class(x)) {
-    ggplot(combi, aes(x, fill = x)) +
-      geom_bar() +
-      theme(legend.position = "none",
-            axis.text.x = element_text(angle = 45, hjust = 1),
-            axis.text = element_text(size = 8)) +
-      theme_minimal() +
-      scale_fill_viridis_d() +
-      labs(title = title, y = "", x = "")
-  }
-  else if ("numeric" %in% class(x)) {
-    ggplot(combi, aes(x)) +
-      geom_histogram()  +
-      theme_minimal() +
-      scale_fill_viridis_d() +
-      labs(title = title, y = "", x = "")
-  } 
-  else if ("integer" %in% class(x)) {
-    ggplot(combi, aes(x)) +
-      geom_histogram() +
-      theme_minimal() +
-      scale_fill_viridis_d() +
-      labs(title = title, y = "", x = "")
-  }
-  else if ("character" %in% class(x)) {
-    ggplot(combi, aes(x, fill = x)) +
-      geom_bar() +
-      theme_minimal() +
-      scale_fill_viridis_d() +
-      theme(legend.position = "none",
-            axis.text.x = element_text(angle = 45, hjust = 1),
-            axis.text = element_text(size = 8)) +
-      labs(title = title, y = "", x = "")
-  }
-}
-
-variable_list <- colnames(train) %>% as.list()
-variable_plot <- map2(train, variable_list, viz_by_dtype) %>%
-  wrap_plots(               
-    ncol = 3,
-    nrow = 4,
-    heights = 150,
-    widths = 150
-  )
+# viz_by_dtype <- function(combi, x, y ) {
+#   title <- str_replace_all(y, "_", " ") %>% 
+#            str_to_title()
+#   if ("factor" %in% class(x)) {
+#     ggplot(combi, aes(x, fill = x)) +
+#       geom_bar() +
+#       theme(legend.position = "none",
+#             axis.text.x = element_text(angle = 45, hjust = 1),
+#             axis.text = element_text(size = 8)) +
+#       theme_minimal() +
+#       scale_fill_viridis_d() +
+#       labs(title = title, y = "", x = "")
+#   }
+#   else if ("numeric" %in% class(x)) {
+#     ggplot(combi, aes(x)) +
+#       geom_histogram()  +
+#       theme_minimal() +
+#       scale_fill_viridis_d() +
+#       labs(title = title, y = "", x = "")
+#   } 
+#   else if ("integer" %in% class(x)) {
+#     ggplot(combi, aes(x)) +
+#       geom_histogram() +
+#       theme_minimal() +
+#       scale_fill_viridis_d() +
+#       labs(title = title, y = "", x = "")
+#   }
+#   else if ("character" %in% class(x)) {
+#     ggplot(combi, aes(x, fill = x)) +
+#       geom_bar() +
+#       theme_minimal() +
+#       scale_fill_viridis_d() +
+#       theme(legend.position = "none",
+#             axis.text.x = element_text(angle = 45, hjust = 1),
+#             axis.text = element_text(size = 8)) +
+#       labs(title = title, y = "", x = "")
+#   }
+# }
+# 
+# variable_list <- colnames(train) %>% as.list()
+# variable_plot <- map2(train, variable_list, viz_by_dtype) %>%
+#   wrap_plots(               
+#     ncol = 3,
+#     nrow = 4,
+#     heights = 150,
+#     widths = 150
+#   )
 
 #-------------- EDA representation
 #-- inspectdf
@@ -181,7 +184,7 @@ rf_mart_res %>%
    geom_abline(lty = 2) +
    geom_point(alpha = 0.5) +
    theme_minimal() +
-   labs(x = "Item Outlet Sales", y = "Predicted Item Outlet Sales", title = "pRandom Forest Regression")
+   labs(x = "Item Outlet Sales", y = "Predicted Item Outlet Sales", title = "Random Forest Regression")
    
 
 #-- Prevent overfitting by randomForest with Dials.
@@ -205,11 +208,13 @@ rf_grid <- grid_regular(mtry(range = c(6,10)),
 folds <- vfold_cv(train, v = 4, strata = Item_Outlet_Sales)
 
 #Train and evaluate all combinations of hyperparameters specified in rf_grid
+tic()
 doParallel::registerDoParallel(cores = 4)
 rf_grid_search <- tune_grid(
   tune_wf,
   resamples = folds,
   grid = rf_grid)
+toc()
 
 #-- Visualize parameters.
 rf_grid_search %>%
@@ -266,3 +271,5 @@ final_rf_res %>% ggplot(aes(x = Item_Outlet_Sales, y = .pred)) +
 metrics(final_rf_res, truth = Item_Outlet_Sales, estimate = .pred)
 
 
+
+tend <- Sys.time() ; tend - tini
